@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #1DB954;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1ed760;
+        }
+        .track-info {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .login-btn {
+            background: #1DB954;
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Spotify Controller</h1>
+        
+        <div id="login-section">
+            <p>Connect your Spotify account to control playback</p>
+            <button class="login-btn" onclick="login()">Login with Spotify</button>
+        </div>
+
+        <div id="player-section" style="display: none;">
+            <div class="track-info" id="track-info">
+                <h3>No track playing</h3>
+                <p>Start playing music on Spotify</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <button onclick="control('previous')">⏮ Previous</button>
+                <button onclick="control('next')">⏭ Next</button>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="getCurrentTrack()">🔄 Refresh Track Info</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if we're authenticated (have access token)
+        async function checkAuth() {
+            try {
+                const response = await fetch('/current');
+                if (response.ok) {
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('player-section').style.display = 'block';
+                    getCurrentTrack();
+                }
+            } catch (error) {
+                console.log('Not authenticated');
+            }
+        }
+
+        function login() {
+            window.location.href = '/login';
+        }
+
+        async function getCurrentTrack() {
+            try {
+                const response = await fetch('/current');
+                const data = await response.json();
+                
+                const trackInfo = document.getElementById('track-info');
+                if (data.track) {
+                    trackInfo.innerHTML = `
+                        <h3>${data.track.name}</h3>
+                        <p>${data.track.artist}</p>
+                        ${data.track.image ? `<img src="${data.track.image}" alt="Album Art" style="width: 100px; height: 100px; border-radius: 10px; margin-top: 10px;">` : ''}
+                    `;
+                } else {
+                    trackInfo.innerHTML = `
+                        <h3>No track playing</h3>
+                        <p>Start playing music on Spotify</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error fetching track info:', error);
+            }
+        }
+
+        async function control(action) {
+            try {
+                const response = await fetch('/control', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action })
+                });
+                
+                if (response.ok) {
+                    console.log(`${action} successful`);
+                    // Refresh track info after a short delay
+                    setTimeout(getCurrentTrack, 1000);
+                } else {
+                    console.error(`${action} failed`);
+                }
+            } catch (error) {
+                console.error('Error controlling playback:', error);
+            }
+        }
+
+        // Check auth status on page load
+        checkAuth();
+    </script>
+</body>
+</html> 

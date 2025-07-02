@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/callback': 'http://127.0.0.1:8888',
+      '/login': 'http://127.0.0.1:8888',
+      '/current': 'http://127.0.0.1:8888',
+      '/control': 'http://127.0.0.1:8888',
+    },
   },
   plugins: [
     react(),

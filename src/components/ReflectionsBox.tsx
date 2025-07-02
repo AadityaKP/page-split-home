@@ -1,41 +1,33 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import React, { useState } from 'react';
+import axios from 'axios';
 
 const ReflectionsBox = () => {
-  const [reflection, setReflection] = useState("");
+  const [reflection, setReflection] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = () => {
-    if (reflection.trim()) {
-      console.log("Reflection submitted:", reflection);
-      setReflection("");
-      // Here you would typically save to a database
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reflection.trim()) return;
+    await axios.post('/reflections', { reflection });
+    setReflection('');
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 2000);
   };
 
   return (
-    <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">Reflections</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Textarea
-          placeholder="How are you feeling today? What's on your mind?"
+    <div className="rounded-lg p-4 bg-gray-100 text-gray-900 shadow">
+      <h2 className="text-lg font-bold mb-2">Reflections</h2>
+      <form onSubmit={handleSubmit}>
+        <textarea
+          className="w-full p-2 border rounded mb-2"
           value={reflection}
-          onChange={(e) => setReflection(e.target.value)}
-          className="min-h-[100px] border-purple-200 focus:border-purple-400"
+          onChange={e => setReflection(e.target.value)}
+          placeholder="Write your thoughts..."
         />
-        <Button 
-          onClick={handleSubmit}
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-          disabled={!reflection.trim()}
-        >
-          Submit Reflection
-        </Button>
-      </CardContent>
-    </Card>
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Submit</button>
+      </form>
+      {submitted && <div className="text-green-600 mt-2">Reflection submitted!</div>}
+    </div>
   );
 };
 
