@@ -69,21 +69,21 @@ export default function MusicPlayer() {
   };
 
   return (
-    <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
+    <Card className="bg-gradient-to-br from-white/25 to-white/10 backdrop-blur-xl border-0 shadow-2xl h-full border border-white/30 hover:shadow-3xl transition-all duration-300">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
-          <Music className="w-5 h-5" />
-          Spotify Player
+        <CardTitle className="text-xl font-bold flex items-center gap-2 text-white tracking-wide">
+          <Music className="w-6 h-6 text-green-400 animate-pulse" />
+          Spotify Player 🎧
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {!accessToken ? (
           <div className="text-center space-y-4">
-            <p className="text-sm text-gray-600">Connect your Spotify account to control playback</p>
-            <Button onClick={login} className="w-full bg-green-600 hover:bg-green-700">
-              Login with Spotify
+            <p className="text-sm text-white/80 font-medium">Connect your Spotify account to control playback</p>
+            <Button onClick={login} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              Login with Spotify ✨
             </Button>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-white/60">
               This will open Spotify login and return here.
             </p>
           </div>
@@ -92,33 +92,45 @@ export default function MusicPlayer() {
             <div className="text-center">
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Loading...</span>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span className="text-sm text-white">Loading...</span>
                 </div>
               ) : currentTrack ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {currentTrack.image && (
                     <img
                       src={currentTrack.image}
                       alt="Album Art"
-                      className="w-32 h-32 rounded-lg mx-auto"
+                      className="w-32 h-32 rounded-xl mx-auto shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110"
                     />
                   )}
-                  <h3 className="font-medium text-lg">{currentTrack.name}</h3>
-                  <p className="text-md text-gray-600">{currentTrack.artist}</p>
+                  <h3 className="font-bold text-lg text-white">{currentTrack.name}</h3>
+                  <p className="text-md text-white/80">{currentTrack.artist}</p>
                 </div>
               ) : (
                 <>
-                  <h3 className="font-medium text-sm">No track playing</h3>
-                  <p className="text-xs text-gray-600">Start playing music on Spotify</p>
+                  <h3 className="font-medium text-sm text-white">No track playing</h3>
+                  <p className="text-xs text-white/70">Start playing music on Spotify</p>
                 </>
               )}
             </div>
-            <div className="flex items-center justify-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={() => control("previous")} disabled={!currentTrack}>
+            <div className="flex items-center justify-center space-x-6">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => control("previous")} 
+                disabled={!currentTrack}
+                className="hover:bg-white/20 text-white hover:text-white p-3 rounded-full transition-all duration-300 hover:scale-110"
+              >
                 <SkipBack className="w-6 h-6" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => control("next")} disabled={!currentTrack}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => control("next")} 
+                disabled={!currentTrack}
+                className="hover:bg-white/20 text-white hover:text-white p-3 rounded-full transition-all duration-300 hover:scale-110"
+              >
                 <SkipForward className="w-6 h-6" />
               </Button>
             </div>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -28,26 +29,35 @@ const TopSongsBox = () => {
     }
   }, [userMood.user_mood]);
 
-  if (loading) return <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl"><CardHeader><CardTitle>Loading...</CardTitle></CardHeader></Card>;
-  if (error) return <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl"><CardHeader><CardTitle>Error: {error}</CardTitle></CardHeader></Card>;
+  if (loading) return (
+    <Card className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl border-0 shadow-2xl h-full border border-white/30">
+      <CardHeader><CardTitle className="text-white animate-pulse">Loading...</CardTitle></CardHeader>
+    </Card>
+  );
+  
+  if (error) return (
+    <Card className="bg-gradient-to-br from-red-500/20 to-red-600/10 backdrop-blur-xl border-0 shadow-2xl h-full border border-red-300/30">
+      <CardHeader><CardTitle className="text-red-100">Error: {error}</CardTitle></CardHeader>
+    </Card>
+  );
 
   return (
-    <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
+    <Card className="bg-gradient-to-br from-white/25 to-white/10 backdrop-blur-xl border-0 shadow-2xl h-full border border-white/30 hover:shadow-3xl transition-all duration-300">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Your Top {userMood.user_mood} Songs</CardTitle>
+        <CardTitle className="text-xl font-bold text-white tracking-wide">Your Top {userMood.user_mood} Songs 🎵</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {topSongs.length === 0 ? (
-            <div className="text-gray-500">No songs found for this mood.</div>
+            <div className="text-white/70 text-center py-4">No songs found for this mood.</div>
           ) : (
             topSongs.map((song, i) => (
-              <div key={i} className="flex items-center space-x-3 p-2 rounded-lg">
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <span className="text-lg font-bold text-purple-700">{i + 1}</span>
+              <div key={i} className="flex items-center space-x-4 p-3 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300 group hover:scale-105">
+                <div className="w-10 h-10 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <span className="text-lg font-bold text-white">{i + 1}</span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-sm">{song.title}</p>
+                  <p className="font-bold text-white group-hover:text-yellow-300 transition-colors duration-300">{song.title}</p>
                 </div>
               </div>
             ))
