@@ -53,7 +53,6 @@ const MoodBox = () => {
       <h2 className="text-lg font-bold mb-2">Your Current Mood</h2>
       <div className="text-2xl mb-2">{mood}</div>
       <MoodBar moods={(moods || [])} />
-      <div className="mt-2 text-sm">Date: {userMood.date} | Day: {userMood.day} | Time: {userMood.time}</div>
     </div>
   );
 };

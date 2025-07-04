@@ -335,22 +335,23 @@ app.get('/mood-distribution', (req, res) => {
 
 // --- Suggestions Endpoint ---
 app.get('/suggestions', async (req, res) => {
-  let mood = 'happy+energetic';
+  let mood = 'happyenergetic';
   try {
     const moodRes = await axios.get('http://127.0.0.1:8888/user-mood');
-    mood = moodRes.data.user_mood?.toLowerCase().replace(/\s|and/g, '') || mood;
+    mood = moodRes.data.user_mood?.toLowerCase().replace(/\s|\+|_|and/g, '') || mood;
   } catch {}
   let suggestions = [];
   if (fs.existsSync(transitionsCsv)) {
     const data = fs.readFileSync(transitionsCsv, 'utf8');
     const [header, ...rows] = data.trim().split('\n');
-    const keys = header.split(',');
-    const moodIdx = keys.findIndex(k => k.toLowerCase().includes('mood'));
-    const suggestionIdx = keys.findIndex(k => k.toLowerCase().includes('suggestion'));
-    suggestions = rows
-      .map(row => row.split(','))
-      .filter(cols => cols[moodIdx]?.toLowerCase() === mood)
-      .map(cols => cols[suggestionIdx]);
+    const moods = header.split(',').map(h => h.trim().toLowerCase().replace(/\s|\+|_|and/g, ''));
+    const moodColIdx = moods.findIndex(m => m === mood);
+    if (moodColIdx !== -1) {
+      suggestions = rows.map(row => {
+        const cols = row.split(',');
+        return (cols[moodColIdx] || '').replace(/"/g, '').trim();
+      }).filter(s => s);
+    }
   }
   res.json({ mood, suggestions: suggestions.length ? suggestions : ['Try something new!'] });
 });
@@ -436,6 +437,39 @@ app.get('/reflections', (req, res) => {
     };
   });
   res.json({ reflections });
+});
+
+app.post('/reflections', (req, res) => {
+  const { reflection, date, day, time } = req.body;
+  if (!reflection || !date || !day || !time) return res.status(400).json({ error: 'Missing reflection or context fields' });
+  let csvData = '';
+  if (fs.existsSync(notesCsv)) {
+    csvData = fs.readFileSync(notesCsv, 'utf8');
+  } else {
+    fs.writeFileSync(notesCsv, 'Date,Day,Time of Day,Short Notes\n', 'utf8');
+    csvData = 'Date,Day,Time of Day,Short Notes\n';
+  }
+  const lines = csvData.trim().split('\n');
+  const header = lines[0];
+  let updated = false;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    if ((cols[0] || '').replace(/"/g, '').trim() === date &&
+        (cols[1] || '').replace(/"/g, '').trim() === day &&
+        (cols[2] || '').replace(/"/g, '').trim() === time) {
+      // Append to existing note
+      const existingNote = (cols[3] || '').replace(/"/g, '').trim();
+      const newNote = existingNote ? `${existingNote} | ${reflection}` : reflection;
+      lines[i] = `${date},${day},${time},${newNote}`;
+      updated = true;
+      break;
+    }
+  }
+  if (!updated) {
+    lines.push(`${date},${day},${time},${reflection}`);
+  }
+  fs.writeFileSync(notesCsv, lines.join('\n') + '\n', 'utf8');
+  res.json({ success: true });
 });
 
 // --- Background Poller ---
