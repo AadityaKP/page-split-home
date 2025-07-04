@@ -1,12 +1,14 @@
+
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardData } from '../hooks/useDashboardData';
 
 const MOOD_COLOR_MAP: Record<string, string> = {
-  'sad+energetic': 'var(--duke-blue)',
-  'sad+calm': 'var(--murrey)',
-  'happy+calm': 'var(--folly)',
-  'happy+energetic': 'var(--orange-pantone)',
-  'Unknown': '#e5e7eb' // Tailwind gray-200 fallback
+  'sad+energetic': '#390099',
+  'sad+calm': '#9e0059',
+  'happy+calm': '#ff0054',
+  'happy+energetic': '#ff5400',
+  'Unknown': '#e5e7eb'
 };
 
 function getMoodKey(mood: string): string {
@@ -22,7 +24,7 @@ function getMoodKey(mood: string): string {
 function MoodBar({ moods }: { moods: string[] }) {
   const total = moods.length || 1;
   return (
-    <div className="flex h-6 w-full rounded overflow-hidden border mt-2">
+    <div className="flex h-4 w-full rounded-full overflow-hidden bg-gray-200 mt-3">
       {moods.map((mood, i) => {
         const key = getMoodKey(mood);
         return (
@@ -39,21 +41,39 @@ function MoodBar({ moods }: { moods: string[] }) {
 
 const MoodBox = () => {
   const { userMood, moodDistribution, loading, error } = useDashboardData();
-  console.log('MoodBox userMood:', userMood);
 
-  if (loading) return <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">Loading...</div>;
-  if (error) return <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">Error: {error}</div>;
+  if (loading) return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg text-center">Loading...</CardTitle>
+      </CardHeader>
+    </Card>
+  );
+  
+  if (error) return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg text-center text-red-600">Error: {error}</CardTitle>
+      </CardHeader>
+    </Card>
+  );
 
-  const mood = userMood.user_mood || 'Unknown';
-  const moods = moodDistribution.moods || [];
-  const moodKey = getMoodKey(mood);
+  const mood = userMood.user_mood || 'Happy';
+  const moods = moodDistribution.moods || ['happy'];
 
   return (
-    <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">
-      <h2 className="text-lg font-bold mb-2">Your Current Mood</h2>
-      <div className="text-2xl mb-2">{mood}</div>
-      <MoodBar moods={(moods || [])} />
-    </div>
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg text-center text-gray-800">Current Mood</CardTitle>
+      </CardHeader>
+      <CardContent className="text-center space-y-3">
+        <div className="text-3xl font-bold text-purple-700 capitalize">{mood}</div>
+        <div className="w-16 h-16 mx-auto bg-yellow-400 rounded-full flex items-center justify-center">
+          <span className="text-2xl">😊</span>
+        </div>
+        <MoodBar moods={moods} />
+      </CardContent>
+    </Card>
   );
 };
 
