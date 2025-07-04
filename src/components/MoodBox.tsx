@@ -1,71 +1,59 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from 'react';
+import { useDashboardData } from '../hooks/useDashboardData';
 
-const MOOD_COLORS: Record<string, string> = {
-  Happy: 'bg-yellow-300',
-  Sad: 'bg-blue-400',
-  Energetic: 'bg-pink-400',
-  Calm: 'bg-green-300',
-  Unknown: 'bg-gray-300'
+const MOOD_COLOR_MAP: Record<string, string> = {
+  'sad+energetic': 'var(--duke-blue)',
+  'sad+calm': 'var(--murrey)',
+  'happy+calm': 'var(--folly)',
+  'happy+energetic': 'var(--orange-pantone)',
+  'Unknown': '#e5e7eb' // Tailwind gray-200 fallback
 };
 
-const MOOD_IMAGES: Record<string, string> = {
-  Happy: '/images/moods/happy.png',
-  Sad: '/images/moods/sad.png',
-  Energetic: '/images/moods/energetic.png',
-  Calm: '/images/moods/calm.png',
-  Unknown: '/images/moods/unknown.png'
-};
+function getMoodKey(mood: string): string {
+  if (!mood) return 'Unknown';
+  const m = mood.toLowerCase().replace(/\s|and/g, '');
+  if (m.includes('sad') && m.includes('energetic')) return 'sad+energetic';
+  if (m.includes('sad') && m.includes('calm')) return 'sad+calm';
+  if (m.includes('happy') && m.includes('calm')) return 'happy+calm';
+  if (m.includes('happy') && m.includes('energetic')) return 'happy+energetic';
+  return 'Unknown';
+}
 
 function MoodBar({ moods }: { moods: string[] }) {
   const total = moods.length || 1;
   return (
     <div className="flex h-6 w-full rounded overflow-hidden border mt-2">
-      {moods.map((mood, i) => (
-        <div
-          key={i}
-          className={`${MOOD_COLORS[mood] || MOOD_COLORS.Unknown}`}
-          style={{ width: `${100 / total}%` }}
-          title={mood}
-        />
-      ))}
+      {moods.map((mood, i) => {
+        const key = getMoodKey(mood);
+        return (
+          <div
+            key={i}
+            style={{ backgroundColor: MOOD_COLOR_MAP[key] || MOOD_COLOR_MAP.Unknown, width: `${100 / total}%` }}
+            title={mood}
+          />
+        );
+      })}
     </div>
   );
 }
 
 const MoodBox = () => {
-  const [mood, setMood] = useState<string>('Unknown');
-  const [moods, setMoods] = useState<string[]>([]);
+  const { userMood, moodDistribution, loading, error } = useDashboardData();
+  console.log('MoodBox userMood:', userMood);
 
-  useEffect(() => {
-    const fetchMood = async () => {
-      const res = await axios.get('/user-mood');
-      setMood(typeof res.data.user_mood === 'string' ? res.data.user_mood : 'Unknown');
-    };
-    const fetchDistribution = async () => {
-      const res = await axios.get('/mood-distribution');
-      setMoods(res.data.moods || []);
-    };
-    fetchMood();
-    fetchDistribution();
-    const interval = setInterval(() => {
-      fetchMood();
-      fetchDistribution();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  if (loading) return <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">Loading...</div>;
+  if (error) return <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">Error: {error}</div>;
 
-  const moodKey = typeof mood === 'string'
-    ? Object.keys(MOOD_IMAGES).find(k => mood.includes(k)) || 'Unknown'
-    : 'Unknown';
-  const imgUrl = MOOD_IMAGES[moodKey];
+  const mood = userMood.user_mood || 'Unknown';
+  const moods = moodDistribution.moods || [];
+  const moodKey = getMoodKey(mood);
 
   return (
     <div className="rounded-lg p-4 bg-blue-100 text-blue-900 shadow flex flex-col items-center">
       <h2 className="text-lg font-bold mb-2">Your Current Mood</h2>
       <div className="text-2xl mb-2">{mood}</div>
-      {imgUrl && <img src={imgUrl} alt={mood} className="w-16 h-16 mb-2" />}
-      <MoodBar moods={moods} />
+      <MoodBar moods={(moods || [])} />
+      <div className="mt-2 text-sm">Date: {userMood.date} | Day: {userMood.day} | Time: {userMood.time}</div>
     </div>
   );
 };

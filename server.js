@@ -33,6 +33,11 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir);
 }
 
+const CSVS_DIR = path.join(__dirname, 'CSVS');
+const moodCsv = path.join(CSVS_DIR, 'time+day+mood.csv');
+const notesCsv = path.join(CSVS_DIR, 'time+note+day+date.csv');
+const transitionsCsv = path.join(CSVS_DIR, 'mood_transitions_activities.csv');
+
 // --- Spotify OAuth State ---
 let access_token = '';
 let refresh_token = '';
@@ -248,63 +253,106 @@ app.get('/listening-history', (req, res) => {
 });
 
 // --- User Mood Endpoint ---
-app.get('/user-mood', async (req, res) => {
-  if (!fs.existsSync(csvFile)) return res.json({ user_mood: 'Unknown' });
-  const data = fs.readFileSync(csvFile, 'utf8');
+app.get('/user-mood', (req, res) => {
+  if (!fs.existsSync(moodCsv)) return res.json({ user_mood: 'Unknown', date: null, day: null, time: null });
+  const data = fs.readFileSync(moodCsv, 'utf8');
   const [header, ...rows] = data.trim().split('\n');
   const keys = header.split(',');
-  // Only keep rows with Mood_Name
-  const filteredRows = rows.filter(row => row.includes('Mood_Name') || row.split(',')[keys.indexOf('Mood_Name')] !== undefined);
-  // Get last 15 rows with Mood_Name
-  const lastRows = rows.slice(-15);
-  const history = lastRows.map(row => {
-    const values = row.split(',');
-    return Object.fromEntries(keys.map((k, i) => [k, values[i] || '']));
+  const dateIdx = keys.findIndex(k => k.toLowerCase().includes('date'));
+  const dayIdx = keys.findIndex(k => k.toLowerCase().includes('day'));
+  const slotIdx = keys.findIndex(
+    k => k.toLowerCase().includes('slot') || k.toLowerCase().includes('time of day')
+  );
+  const moodIdx = keys.findIndex(k => k.toLowerCase().includes('mood'));
+  if (dateIdx === -1 || slotIdx === -1 || moodIdx === -1 || dayIdx === -1) return res.json({ user_mood: 'Unknown', date: null, day: null, time: null });
+
+  // Get current date and time slot
+  const now = new Date();
+  const hours = now.getHours();
+  let slot = '';
+  if (hours >= 6 && hours < 10) slot = 'morning';
+  else if (hours >= 10 && hours < 14) slot = 'afternoon';
+  else if (hours >= 14 && hours < 18) slot = 'evening';
+  else if (hours >= 18 && hours < 22) slot = 'night';
+  else slot = 'night'; // fallback for late night/early morning
+  // Format date as DD-MM-YYYY to match CSV
+  const today = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth()+1).padStart(2, '0')}-${now.getFullYear()}`;
+
+  // Debug logging
+  console.log('DEBUG /user-mood: Looking for date =', today, ', slot =', slot);
+  rows.slice().reverse().forEach(row => {
+    const cols = row.split(',');
+    console.log('  Row:', {
+      date: (cols[dateIdx] || '').trim(),
+      slot: (cols[slotIdx] || '').trim().toLowerCase(),
+      mood: (cols[moodIdx] || '').replace(/"/g, '').trim()
+    });
   });
-  try {
-    const response = await axios.post('http://127.0.0.1:5001/user-mood', { history });
-    res.json({ user_mood: response.data.user_mood });
-  } catch (err) {
-    console.error('ML API user mood aggregation failed:', err.message);
-    res.json({ user_mood: 'Unknown' });
+
+  // Find the latest row for today and current slot (robust matching)
+  const match = rows.reverse().find(row => {
+    const cols = row.split(',');
+    const rowDate = (cols[dateIdx] || '').trim();
+    const rowSlot = (cols[slotIdx] || '').trim().toLowerCase();
+    return rowDate === today && rowSlot === slot;
+  });
+  if (match) {
+    const cols = match.split(',');
+    return res.json({
+      user_mood: (cols[moodIdx] || '').replace(/"/g, '').trim(),
+      date: (cols[dateIdx] || '').trim(),
+      day: (cols[dayIdx] || '').trim(),
+      time: (cols[slotIdx] || '').trim()
+    });
   }
+  res.json({ user_mood: 'Unknown', date: today, day: null, time: slot });
 });
 
 // --- Mood Distribution Endpoint ---
 app.get('/mood-distribution', (req, res) => {
-  // Try classified_songs.csv first, fallback to listening_history.csv
-  let csvPath = path.join(__dirname, 'ML', 'classified_songs.csv');
-  if (!fs.existsSync(csvPath)) {
-    csvPath = path.join(__dirname, 'listening_history.csv');
-  }
-  if (!fs.existsSync(csvPath)) return res.json({ moods: [] });
-  const data = fs.readFileSync(csvPath, 'utf8');
+  if (!fs.existsSync(moodCsv)) return res.json({ moods: [], records: [] });
+  const data = fs.readFileSync(moodCsv, 'utf8');
   const [header, ...rows] = data.trim().split('\n');
   const keys = header.split(',');
-  const moodIdx = keys.indexOf('Predicted_Mood') !== -1 ? keys.indexOf('Predicted_Mood') : keys.indexOf('Mood_Name');
-  if (moodIdx === -1) return res.json({ moods: [] });
+  const dateIdx = keys.findIndex(k => k.toLowerCase().includes('date'));
+  const dayIdx = keys.findIndex(k => k.toLowerCase().includes('day'));
+  const slotIdx = keys.findIndex(k => k.toLowerCase().includes('slot') || k.toLowerCase().includes('time of day'));
+  const moodIdx = keys.findIndex(k => k.toLowerCase().includes('mood'));
+  if (moodIdx === -1) return res.json({ moods: [], records: [] });
   const lastRows = rows.slice(-20);
-  const moods = lastRows.map(row => row.split(',')[moodIdx].replace(/"/g, ''));
-  res.json({ moods });
+  const moods = lastRows.map(row => row.split(',')[moodIdx].replace(/"/g, '').trim());
+  const records = lastRows.map(row => {
+    const cols = row.split(',');
+    return {
+      date: (cols[dateIdx] || '').trim(),
+      day: (cols[dayIdx] || '').trim(),
+      time: (cols[slotIdx] || '').trim(),
+      mood: (cols[moodIdx] || '').replace(/"/g, '').trim()
+    };
+  });
+  res.json({ moods, records });
 });
 
 // --- Suggestions Endpoint ---
 app.get('/suggestions', async (req, res) => {
-  // Use current mood to suggest activities
-  let mood = 'Happy';
+  let mood = 'happy+energetic';
   try {
     const moodRes = await axios.get('http://127.0.0.1:8888/user-mood');
-    mood = moodRes.data.user_mood || 'Happy';
+    mood = moodRes.data.user_mood?.toLowerCase().replace(/\s|and/g, '') || mood;
   } catch {}
-  const suggestionsByMood = {
-    Happy: ['Yoga', 'Walk', 'Call a friend', 'Dance'],
-    Sad: ['Listen to uplifting music', 'Go for a walk', 'Write your thoughts'],
-    Energetic: ['Go for a run', 'Try a new workout', 'Clean your room'],
-    Calm: ['Meditate', 'Read a book', 'Take a nap'],
-    Unknown: ['Take a deep breath', 'Try something new']
-  };
-  const key = Object.keys(suggestionsByMood).find(k => mood.includes(k)) || 'Unknown';
-  res.json({ suggestions: suggestionsByMood[key] });
+  let suggestions = [];
+  if (fs.existsSync(transitionsCsv)) {
+    const data = fs.readFileSync(transitionsCsv, 'utf8');
+    const [header, ...rows] = data.trim().split('\n');
+    const keys = header.split(',');
+    const moodIdx = keys.findIndex(k => k.toLowerCase().includes('mood'));
+    const suggestionIdx = keys.findIndex(k => k.toLowerCase().includes('suggestion'));
+    suggestions = rows
+      .map(row => row.split(','))
+      .filter(cols => cols[moodIdx]?.toLowerCase() === mood)
+      .map(cols => cols[suggestionIdx]);
+  }
+  res.json({ mood, suggestions: suggestions.length ? suggestions : ['Try something new!'] });
 });
 
 // --- Top Songs Endpoint ---
@@ -318,14 +366,14 @@ app.get('/top-songs', (req, res) => {
   const songIdx = keys.indexOf('Song Name');
   const artistIdx = keys.indexOf('Artist(s)');
   const moodIdx = keys.indexOf('Mood_Name');
-  if (songIdx === -1 || artistIdx === -1 || moodIdx === -1) return res.json({ songs: [] });
+  if (songIdx === -1 || artistIdx === -1) return res.json({ songs: [] });
   // Filter by mood, count occurrences
   const songCounts = {};
   rows.forEach(row => {
     const cols = row.split(',');
-    const song = cols[songIdx].replace(/"/g, '');
-    const artist = cols[artistIdx].replace(/"/g, '');
-    const moodName = cols[moodIdx].replace(/"/g, '');
+    const song = cols[songIdx].replace(/"/g, '').trim();
+    const artist = cols[artistIdx].replace(/"/g, '').trim();
+    const moodName = moodIdx !== -1 ? cols[moodIdx].replace(/"/g, '').trim() : '';
     if (moodName.includes(mood)) {
       const key = `${song} - ${artist}`;
       songCounts[key] = (songCounts[key] || 0) + 1;
@@ -338,7 +386,7 @@ app.get('/top-songs', (req, res) => {
       const [title, artist] = key.split(' - ');
       return { title, artist };
     });
-  res.json({ songs: topSongs });
+  res.json({ mood, songs: topSongs });
 });
 
 // --- Weekly Trends Endpoint ---
@@ -356,38 +404,36 @@ app.get('/weekly-trends', (req, res) => {
   rows.forEach(row => {
     const cols = row.split(',');
     const date = cols[timeIdx].slice(0, 10);
-    const mood = cols[moodIdx].replace(/"/g, '');
+    const mood = cols[moodIdx].replace(/"/g, '').trim();
     if (!trendsByDay[date]) trendsByDay[date] = {};
     trendsByDay[date][mood] = (trendsByDay[date][mood] || 0) + 1;
   });
   // Format as list
   const trends = Object.entries(trendsByDay).map(([date, moods]) => {
     const moodStr = Object.entries(moods).map(([m, c]) => `${m}: ${c}`).join(', ');
-    return `${date}: ${moodStr}`;
+    return { date, summary: moodStr, moods };
   });
   res.json({ trends });
 });
 
-// --- Reflections Endpoints ---
-const reflectionsPath = path.join(__dirname, 'reflections.csv');
-app.post('/reflections', (req, res) => {
-  const { reflection } = req.body;
-  if (!reflection) return res.status(400).json({ error: 'No reflection provided' });
-  const row = `"${new Date().toISOString()}","${reflection.replace(/"/g, '""')}"\n`;
-  if (!fs.existsSync(reflectionsPath)) {
-    fs.writeFileSync(reflectionsPath, 'Timestamp,Reflection\n', 'utf8');
-  }
-  fs.appendFileSync(reflectionsPath, row, 'utf8');
-  res.json({ success: true });
-});
-
+// --- Reflections Endpoint ---
 app.get('/reflections', (req, res) => {
-  if (!fs.existsSync(reflectionsPath)) return res.json({ reflections: [] });
-  const data = fs.readFileSync(reflectionsPath, 'utf8');
+  if (!fs.existsSync(notesCsv)) return res.json({ reflections: [] });
+  const data = fs.readFileSync(notesCsv, 'utf8');
   const [header, ...rows] = data.trim().split('\n');
+  const keys = header.split(',');
+  const dateIdx = keys.findIndex(k => k.toLowerCase().includes('date'));
+  const dayIdx = keys.findIndex(k => k.toLowerCase().includes('day'));
+  const slotIdx = keys.findIndex(k => k.toLowerCase().includes('slot') || k.toLowerCase().includes('time of day'));
+  const noteIdx = keys.findIndex(k => k.toLowerCase().includes('note'));
   const reflections = rows.map(row => {
-    const [timestamp, reflection] = row.split(/,(.+)/);
-    return { timestamp: timestamp.replace(/"/g, ''), reflection: reflection.replace(/"/g, '') };
+    const cols = row.split(',');
+    return {
+      date: (cols[dateIdx] || '').trim(),
+      day: (cols[dayIdx] || '').trim(),
+      time: (cols[slotIdx] || '').trim(),
+      note: (cols[noteIdx] || '').replace(/"/g, '').trim()
+    };
   });
   res.json({ reflections });
 });

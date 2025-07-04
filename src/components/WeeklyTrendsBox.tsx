@@ -1,22 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from 'react';
+import { useDashboardData } from '../hooks/useDashboardData';
 
 const WeeklyTrendsBox = () => {
-  const [trends, setTrends] = useState<string[]>([]);
+  const { weeklyTrends, loading, error } = useDashboardData();
 
-  useEffect(() => {
-    const fetchTrends = async () => {
-      const res = await axios.get('/weekly-trends');
-      setTrends(res.data.trends || []);
-    };
-    fetchTrends();
-  }, []);
+  if (loading) return <div className="rounded-lg p-4 bg-purple-100 text-purple-900 shadow">Loading...</div>;
+  if (error) return <div className="rounded-lg p-4 bg-purple-100 text-purple-900 shadow">Error: {error}</div>;
 
   return (
     <div className="rounded-lg p-4 bg-purple-100 text-purple-900 shadow">
       <h2 className="text-lg font-bold mb-2">Weekly Trends</h2>
       <ul className="list-disc pl-5">
-        {trends.map((t, i) => <li key={i}>{t}</li>)}
+        {(weeklyTrends.trends || []).map((t, i) => <li key={i}>{t.summary}</li>)}
       </ul>
     </div>
   );

@@ -1,3 +1,10 @@
+:root {
+  --duke-blue: #390099ff;
+  --murrey: #9e0059ff;
+  --folly: #ff0054ff;
+  --orange-pantone: #ff5400ff;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;

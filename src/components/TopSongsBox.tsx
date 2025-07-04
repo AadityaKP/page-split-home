@@ -1,22 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music } from "lucide-react";
+import { useDashboardData } from '../hooks/useDashboardData';
 
 const TopSongsBox = () => {
-  const [songs, setSongs] = useState<{ title: string, artist: string }[]>([]);
-  const [mood, setMood] = useState('Happy');
+  const { topSongs, loading, error } = useDashboardData();
 
-  useEffect(() => {
-    const fetchMoodAndSongs = async () => {
-      const moodRes = await axios.get('/user-mood');
-      const moodVal = moodRes.data.user_mood || 'Happy';
-      setMood(moodVal);
-      const songsRes = await axios.get(`/top-songs?mood=${encodeURIComponent(moodVal)}`);
-      setSongs(songsRes.data.songs || []);
-    };
-    fetchMoodAndSongs();
-  }, []);
+  if (loading) return <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl"><CardHeader><CardTitle>Loading...</CardTitle></CardHeader></Card>;
+  if (error) return <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl"><CardHeader><CardTitle>Error: {error}</CardTitle></CardHeader></Card>;
+
+  const mood = topSongs.mood || 'Happy';
+  const songs = topSongs.songs || [];
 
   return (
     <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
@@ -25,7 +19,7 @@ const TopSongsBox = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {songs.slice(0, 5).map((song, i) => (
+          {(songs || []).slice(0, 5).map((song, i) => (
             <div key={i} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-purple-50 transition-colors">
               <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {i + 1}
